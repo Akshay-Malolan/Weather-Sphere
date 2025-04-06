@@ -35,7 +35,7 @@ WeatherSphere is an interactive weather dashboard that provides real-time weathe
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/weather-sphere.git
+   git clone https://github.com/Akshay-Malolan/Weather-Sphere.git
    cd weather-sphere
    ```
 
