@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeatherSphere - Interactive Weather Dashboard</title>
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Libraries -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+  <!-- Three.js is required by VANTA effects -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.fog.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.clouds.min.js"></script>
+  
+  <style>
+    :root {
+      --primary: #3498db;
+      --secondary: #2ecc71;
+      --accent: #e74c3c;
+      --dark: #2c3e50;
+      --light: #ecf0f1;
+      --card-bg: rgba(255, 255, 255, 0.15);
+      --transition: all 0.3s ease;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+      color: var(--light);
+      background: linear-gradient(135deg, #1a2980, #26d0ce);
+      transition: var(--transition);
+      overflow-x: hidden;
+    }
+    /* Theme Classes */
+    .theme-default {
+      background: linear-gradient(135deg, #1a2980, #26d0ce);
+      --primary: #3498db;
+      --card-bg: rgba(255, 255, 255, 0.15);
+    }
+    .theme-night {
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      --primary: #9b59b6;
+      --card-bg: rgba(0, 0, 0, 0.3);
+    }
+    .theme-futuristic {
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      --primary: #00feca;
+      --card-bg: rgba(0, 0, 0, 0.4);
+    }
+    .theme-sunny {
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      --primary: #00feca;
+      --card-bg: rgba(0, 0, 0, 0.4);
+    }
+    .theme-rainy {
+      background: linear-gradient(135deg, #2c3e50, #4ca1af);
+      --primary: #3498db;
+      --card-bg: rgba(255, 255, 255, 0.1);
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 10;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .logo i {
+      color: var(--primary);
+    }
+    .search-container {
+      display: flex;
+      gap: 0.5rem;
+      flex-grow: 1;
+      max-width: 600px;
+    }
+    input, select, button {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Poppins', sans-serif;
+      font-size: 1rem;
+      transition: var(--transition);
+    }
+    input {
+      flex-grow: 1;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--dark);
+    }
+    input:focus {
+      outline: 2px solid var(--primary);
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+    }
+    button {
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    button:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+    }
+    button.secondary {
+      background: var(--secondary);
+    }
+    button.tertiary {
+      background: var(--accent);
+    }
+    select {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--dark);
+      cursor: pointer;
+      min-width: 150px;
+    }
+    .controls {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+    @media (max-width: 768px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      transition: var(--transition);
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .card-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .current-weather {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .weather-icon {
+      font-size: 5rem;
+      margin-bottom: 1rem;
+      line-height: 1;
+    }
+    .temperature {
+      font-size: 3.5rem;
+      font-weight: 300;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+    }
+    .temperature small {
+      font-size: 1.5rem;
+      margin-top: 0.5rem;
+    }
+    .condition-text {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+    .weather-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      width: 100%;
+    }
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.75rem;
+      border-radius: 8px;
+    }
+    .detail-item i {
+      font-size: 1.2rem;
+      color: var(--primary);
+    }
+    #map {
+      height: 100%;
+      max-height: 300px;
+      border-radius: 16px;
+      overflow: hidden;
+      width: auto;
+    }
+    .map-controls {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .map-button {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      gap: 0.3rem;
+    }
+    .forecast-container {
+      grid-column: 1 / -1;
+    }
+    .forecast-container canvas {
+      height: 200px !important;
+      max-height: 200px;
+    }
+    .hourly-forecast {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      padding: 1rem 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--primary) transparent;
+    }
+    .hourly-forecast::-webkit-scrollbar {
+      height: 6px;
+    }
+    .hourly-forecast::-webkit-scrollbar-thumb {
+      background-color: var(--primary);
+      border-radius: 3px;
+    }
+    .hour-card {
+      min-width: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      border-radius: 8px;
+      transition: var(--transition);
+    }
+    .hour-card:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .hour {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    .hour-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .hour-temp {
+      font-weight: 500;
+    }
+    /* Animation Classes */
+    #weather-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    .rain-drop {
+      position: absolute;
+      width: 2px;
+      height: 20px;
+      background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.6));
+      animation: fall linear infinite;
+      z-index: 2;
+    }
+    @keyframes fall {
+      to {
+        transform: translateY(100vh);
+      }
+    }
+    .snowflake {
+      position: absolute;
+      color: white;
+      animation: snowfall linear infinite;
+      z-index: 2;
+    }
+    @keyframes snowfall {
+      to {
+        transform: translateY(100vh) rotate(360deg);
+      }
+    }
+    /* Loading Animation */
+    .loader {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--dark);
+      color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transform: translateX(200%);
+      transition: transform 0.3s ease;
+    }
+    .toast.show {
+      transform: translateX(0);
+    }
+    .toast i {
+      font-size: 1.2rem;
+    }
+    .toast.error i {
+      color: var(--accent);
+    }
+    .toast.success i {
+      color: var(--secondary);
+    }
+    /* Responsive Adjustments */
+    @media (max-width: 600px) {
+      .container {
+        padding: 1rem;
+      }
+      header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .controls {
+        flex-direction: column;
+      }
+      select {
+        width: 100%;
+      }
+      .weather-details {
+        grid-template-columns: 1fr;
+      }
+      .map-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+    }
+    /* Map selection mode indicator */
+    .map-selection-mode {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: pulse 2s infinite;
+      backdrop-filter: blur(10px);
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+    }
+  </style>
+</head>
+<body class="theme-default">
+  <div id="weather-background"></div>
+  <div id="app">
+    <div class="container">
+      <header>
+        <div class="logo">
+          <i class="fas fa-cloud-sun-rain"></i>
+          <span>WeatherSphere</span>
+        </div>
+        <div class="search-container">
+          <input 
+            type="text" 
+            v-model="location" 
+            placeholder="Enter a city or location..."
+            @keyup.enter="searchWeather"
+          >
+          <button @click="searchWeather" :disabled="isLoading">
+            <span v-if="!isLoading">Search</span>
+            <span v-else class="loader"></span>
+          </button>
+          <button class="secondary" @click="startVoiceInput">
+            <i class="fas fa-microphone"></i>
+          </button>
+        </div>
+        <div class="controls">
+          <select v-model="selectedTheme" @change="applyTheme">
+            <option value="theme-default">Default Theme</option>
+            <option value="theme-night">Night Mode</option>
+            <option value="theme-futuristic">Futuristic</option>
+          </select>
+          <button @click="getLocation">
+            <i class="fas fa-location-arrow"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Always visible Interactive Map Card -->
+      <div class="card map-card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h2 class="card-title">
+            <i class="fas fa-map"></i>
+            Interactive Map
+          </h2>
+          <button class="secondary map-button" @click="toggleMapSelection">
+            <i class="fas fa-map-marker-alt"></i> Select on Map
+          </button>
+        </div>
+        <div class="map-controls" v-if="!mapSelectionMode">
+          <button class="map-button" @click="zoomIn">
+            <i class="fas fa-plus"></i> Zoom In
+          </button>
+          <button class="map-button" @click="zoomOut">
+            <i class="fas fa-minus"></i> Zoom Out
+          </button>
+          <button class="map-button" @click="centerOnLocation">
+            <i class="fas fa-crosshairs"></i> Center
+          </button>
+        </div>
+        <div id="map" style="height: 400px;"></div>
+      </div>
+      <!-- End of Interactive Map Card -->
+
+      <div class="toast" :class="{ show: showToast, 'error': toastError }">
+        <i :class="toastError ? 'fas fa-exclamation-circle' : 'fas fa-check-circle'"></i>
+        <span>{{ toastMessage }}</span>
+      </div>
+      <div class="map-selection-mode" v-if="mapSelectionMode">
+        <i class="fas fa-map-marker-alt"></i>
+        <span>Click on the map to select a location</span>
+        <button class="tertiary" @click="toggleMapSelection">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+      </div>
+      <main v-if="weatherData">
+        <div class="main-content">
+          <!-- Current Weather Card -->
+          <div class="card current-weather-card" style="grid-column: 1 / -1; margin-top: 1rem">
+            <div class="card-header">
+              <h2 class="card-title">
+                <i class="fas fa-map-marker-alt"></i>
+                {{ weatherData.location.name }}, {{ weatherData.location.country }}
+              </h2>
+              <span>{{ formatDate(weatherData.location.localtime) }}</span>
+            </div>
+            <div class="current-weather">
+              <div class="weather-icon">
+                {{ weatherIcon }}
+              </div>
+              <div class="temperature">
+                {{ Math.round(weatherData.current.temp_c) }}
+                <small>°C</small>
+              </div>
+              <div class="condition-text">
+                {{ weatherData.current.condition.text }}
+              </div>
+              <div class="weather-details">
+                <div class="detail-item">
+                  <i class="fas fa-temperature-low"></i>
+                  <span>Feels {{ Math.round(weatherData.current.feelslike_c) }}°C</span>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-wind"></i>
+                  <span>{{ Math.round(weatherData.current.wind_kph) }} km/h</span>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-tint"></i>
+                  <span>{{ weatherData.current.humidity }}%</span>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-eye"></i>
+                  <span>{{ weatherData.current.vis_km }} km visibility</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Hourly Forecast -->
+          <div class="card forecast-container">
+            <div class="card-header">
+              <h2 class="card-title">
+                <i class="fas fa-clock"></i>
+                Hourly Forecast
+              </h2>
+            </div>
+            <div class="hourly-forecast">
+              <div class="hour-card" v-for="(hour, index) in hourlyForecast" :key="index">
+                <div class="hour">{{ formatHour(hour.time) }}</div>
+                <div class="hour-icon">{{ getWeatherIcon(hour.condition.text) }}</div>
+                <div class="hour-temp">{{ Math.round(hour.temp_c) }}°</div>
+              </div>
+            </div>
+          </div>
+          <!-- 7-Day Forecast Chart -->
+          <div class="card forecast-container">
+            <div class="card-header">
+              <h2 class="card-title">
+                <i class="fas fa-calendar-alt"></i>
+                7-Day Forecast
+              </h2>
+            </div>
+            <canvas id="forecastChart" style="height: 200px;"></canvas>
+          </div>
+          <!-- AI Suggestions Card -->
+<div class="card ai-suggestions-card" v-if="placeSuggestions.length" style="grid-column: 1 / -1; max-width: 900px; margin: 0 auto;">
+  <div class="card-header">
+    <h2 class="card-title">
+      <i class="fas fa-lightbulb"></i>
+      AI Suggestions for {{ weatherData.location.name }}
+    </h2>
+    <button @click="fetchPlaceSuggestions" class="map-button secondary" v-if="!isLoadingSuggestions">
+      <i class="fas fa-sync"></i> Refresh
+    </button>
+    <div v-else class="loader"></div>
+  </div>
+  <p v-if="isLoadingSuggestions" class="text-center p-4">
+    <span class="loader"></span> Getting recommendations...
+  </p>
+  <div v-else>
+    <div class="weather-details" style="margin-bottom: 10px;">
+      <div class="detail-item">
+        <i class="fas fa-thermometer-half"></i>
+        <span>{{ Math.round(weatherData.current.temp_c) }}°C</span>
+      </div>
+      <div class="detail-item">
+        <i class="fas fa-cloud"></i>
+        <span>{{ weatherData.current.condition.text }}</span>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div v-for="(suggestion, index) in placeSuggestions" :key="index" 
+           style="padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+        <div style="display: flex; align-items: center; margin-bottom: 5px;">
+          <i class="fas" :class="suggestion.activityType === 'indoor' ? 'fa-house' : 'fa-tree'" style="margin-right: 8px;"></i>
+          <strong>{{ suggestion.name }}</strong>
+        </div>
+        <p style="margin: 0; padding-left: 20px;">{{ suggestion.description }}</p>
+        <span style="display: inline-block; margin-top: 5px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.2); font-size: 0.8rem;">
+          {{ suggestion.activityType }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+      </main>
+      <div v-else class="welcome-message">
+        <div class="card" style="text-align: center;">
+          <h2>Welcome to WeatherSphere</h2>
+          <p>Search for a location to view current weather conditions, forecasts, and more!</p>
+          <button @click="getLocation" style="margin-top: 1rem;">
+            <i class="fas fa-location-arrow"></i> Use My Location
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const { createApp } = Vue;
+    createApp({
+      data() {
+        return {
+          location: '',
+          weatherData: null,
+          forecastData: null,
+          selectedTheme: 'theme-default',
+          map: null,
+          marker: null,
+          forecastChart: null,
+          vantaEffect: null,
+          isLoading: false,
+          showToast: false,
+          toastMessage: '',
+          toastError: false,
+          mapSelectionMode: false,
+          apiKey: '458f147ee1604f8fb76131457250102', // Your WeatherAPI key
+          // Removed the openAIKey since Gemini API is used via the backend
+          placeSuggestions: [], // Array to store AI-generated place suggestions
+          isLoadingSuggestions: false // Flag to track suggestions loading state
+        }
+      },
+      computed: {
+        weatherIcon() {
+          if (!this.weatherData) return '☁️';
+          const code = this.weatherData.current.condition.code;
+          const isDay = this.weatherData.current.is_day;
+          const icons = {
+            1000: isDay ? '☀️' : '🌙',
+            1003: isDay ? '⛅️' : '🌥️',
+            1006: '☁️',
+            1009: '☁️',
+            1030: '🌫️',
+            1063: '🌦️',
+            1066: '🌨️',
+            1069: '🌨️',
+            1072: '🌨️',
+            1087: '🌩️',
+            1114: '🌨️',
+            1117: '🌨️',
+            1135: '🌫️',
+            1147: '🌫️',
+            1150: '🌦️',
+            1153: '🌦️',
+            1168: '🌨️',
+            1171: '🌧️',
+            1180: '🌦️',
+            1183: '🌦️',
+            1186: '🌧️',
+            1189: '🌧️',
+            1192: '🌧️',
+            1195: '🌧️',
+            1198: '🌨️',
+            1201: '🌨️',
+            1204: '🌨️',
+            1207: '🌨️',
+            1210: '🌨️',
+            1213: '🌨️',
+            1216: '🌨️',
+            1219: '🌨️',
+            1222: '🌨️',
+            1225: '🌨️',
+            1237: '🧊',
+            1240: '🌦️',
+            1243: '🌧️',
+            1246: '🌧️',
+            1249: '🌨️',
+            1252: '🌨️',
+            1255: '🌨️',
+            1258: '🌨️',
+            1261: '🧊',
+            1264: '🧊',
+            1273: '⛈️',
+            1276: '⛈️',
+            1279: '⛈️',
+            1282: '⛈️'
+          };
+          return icons[code] || '☁️';
+        },
+        hourlyForecast() {
+          if (!this.weatherData || !this.weatherData.forecast) return [];
+          return this.weatherData.forecast.forecastday[0].hour.slice(0, 24);
+        }
+      },
+      methods: {
+        handleResize() {
+          if (this.map) {
+            this.map.invalidateSize();
+          }
+        },
+        searchWeather() {
+          if (!this.location.trim()) {
+            this.showMessage('Please enter a location', true);
+            return;
+          }
+          this.isLoading = true;
+          this.fetchWeather(this.location);
+        },
+        async fetchWeather(query) {
+          try {
+            const weatherApiUrl = `https://api.weatherapi.com/v1/forecast.json?key=${this.apiKey}&q=${encodeURIComponent(query)}&days=7&aqi=no&alerts=no`;
+            const response = await fetch(weatherApiUrl);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.error) {
+              this.showMessage(data.error.message, true);
+              this.isLoading = false;
+              return;
+            }
+            this.weatherData = data;
+            
+            // Get additional forecast data from Open Meteo
+            const lat = data.location.lat;
+            const lon = data.location.lon;
+            const openMeteoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto`;
+            const openMeteoRes = await fetch(openMeteoUrl);
+            const openMeteoData = await openMeteoRes.json();
+
+            // Construct forecastData for the chart
+            if (openMeteoData.daily) {
+              const daily = openMeteoData.daily;
+              this.forecastData = daily.time.map((date, idx) => {
+                const avgTemp = (daily.temperature_2m_max[idx] + daily.temperature_2m_min[idx]) / 2;
+                return {
+                  date: date,
+                  avgtemp_c: avgTemp.toFixed(1)
+                };
+              });
+            }
+            
+            this.updateMap(data.location.lat, data.location.lon);
+            this.updateBackgroundEffects(data.current.condition.text.toLowerCase());
+            this.$nextTick(() => {
+              this.renderForecastChart();
+            });
+            this.fetchPlaceSuggestions();
+            this.showMessage('Weather data loaded successfully');
+          } catch (error) {
+            console.error('Error fetching weather:', error);
+            this.showMessage('Failed to fetch weather data: ' + error.message, true);
+          } finally {
+            this.isLoading = false;
+          }
+        },
+        async fetchPlaceSuggestions() {
+          if (!this.weatherData) return;
+          this.isLoadingSuggestions = true;
+          this.placeSuggestions = [];
+          try {
+            const location = this.weatherData.location.name;
+            const weather = this.weatherData.current.condition.text;
+            const temp = Math.round(this.weatherData.current.temp_c);
+            console.log("Fetching suggestions for:", location, weather, temp);
+            
+            // Added a timeout to ensure UI shows loading state
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Call your backend endpoint using Gemini API
+            const response = await fetch(`${window.location.origin}/api/ai-suggestions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ location, weather, temp })
+            });
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to fetch suggestions');
+            }
+            
+            const data = await response.json();
+            console.log("Server response:", data);
+            
+            if (data.error) {
+              this.showMessage(`AI Suggestions Error: ${data.error}`, true);
+              return;
+            }
+            
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+              try {
+                // First try direct JSON parsing
+                let content;
+                try {
+                  content = JSON.parse(data.choices[0].message.content);
+                } catch (e) {
+                  // If direct parsing fails, try to extract JSON with regex
+                  const jsonMatch = data.choices[0].message.content.match(/\{[\s\S]*\}/);
+                  if (jsonMatch) {
+                    content = JSON.parse(jsonMatch[0]);
+                  } else {
+                    // If that fails too, try to handle non-JSON responses
+                    const lines = data.choices[0].message.content.split('\n').filter(line => line.trim());
+                    if (lines.length > 0) {
+                      content = {
+                        suggestions: lines.map(line => {
+                          const parts = line.split(':');
+                          return {
+                            name: parts[0]?.trim() || 'Suggestion',
+                            description: parts[1]?.trim() || line.trim(),
+                            activityType: line.toLowerCase().includes('indoor') ? 'indoor' : 'outdoor'
+                          };
+                        })
+                      };
+                    } else {
+                      throw new Error("Could not extract suggestions from response");
+                    }
+                  }
+                }
+                
+                if (content.suggestions && Array.isArray(content.suggestions)) {
+                  this.placeSuggestions = content.suggestions; // Remove the slice(0, 5) to show all suggestions
+                  if (this.placeSuggestions.length > 0) {
+                    this.showMessage(`Found ${this.placeSuggestions.length} places to visit!`);
+                  } else {
+                    this.showMessage("No place suggestions found for this location", true);
+                  }
+                } else {
+                  this.showMessage("Invalid suggestions format from AI", true);
+                }
+              } catch (e) {
+                console.error('Error parsing AI response:', e, data.choices[0].message.content);
+                this.showMessage("Error parsing AI response", true);
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching place suggestions:', error);
+            this.showMessage(`Failed to fetch AI suggestions: ${error.message}`, true);
+          } finally {
+            this.isLoadingSuggestions = false;
+          }
+        },
+        updateMap(lat, lon) {
+          if (!this.map) {
+            this.initMap();
+          }
+          if (this.marker) {
+            this.marker.setLatLng([lat, lon]);
+          } else {
+            this.marker = L.marker([lat, lon]).addTo(this.map);
+          }
+          this.map.setView([lat, lon], 10);
+          setTimeout(() => {
+            this.map.invalidateSize(true);
+          }, 500);
+        },
+        initMap() {
+          this.$nextTick(() => {
+            if (this.map) {
+              this.map.invalidateSize(true);
+              return;
+            }
+            this.map = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(this.map);
+            this.setupMapClickHandler();
+            setTimeout(() => {
+              this.map.invalidateSize(true);
+            }, 300);
+          });
+        },
+        setupMapClickHandler() {
+          if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler);
+          }
+          if (this.mapSelectionMode) {
+            this.mapClickHandler = (e) => {
+              const lat = e.latlng.lat.toFixed(4);
+              const lng = e.latlng.lng.toFixed(4);
+              if (!this.selectionMarker) {
+                this.selectionMarker = L.marker([lat, lng], {
+                  icon: L.divIcon({
+                    className: 'selection-marker',
+                    html: '<i class="fas fa-map-marker-alt" style="color: #e74c3c; font-size: 32px;"></i>',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                  })
+                }).addTo(this.map);
+              } else {
+                this.selectionMarker.setLatLng([lat, lng]);
+              }
+              this.fetchWeather(`${lat},${lng}`);
+              this.toggleMapSelection();
+            };
+          } else {
+            this.mapClickHandler = (e) => {
+              this.map.panTo(e.latlng);
+            };
+          }
+          this.map.on('click', this.mapClickHandler);
+        },
+        renderForecastChart() {
+          if (this.forecastChart) {
+            this.forecastChart.destroy();
+          }
+          if (!this.forecastData) return;
+          const labels = this.forecastData.map(day => new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }));
+          const avgTemps = this.forecastData.map(day => day.avgtemp_c);
+          const ctx = document.getElementById('forecastChart').getContext('2d');
+          this.forecastChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Avg Temp (°C)',
+                  data: avgTemps,
+                  borderColor: '#e74c3c',
+                  backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                  borderWidth: 2,
+                  tension: 0.3,
+                  fill: true
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  labels: {
+                    color: '#ffffff'
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: false,
+                  ticks: {
+                    color: '#ffffff',
+                  },
+                  grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                  }
+                },
+                x: {
+                  ticks: {
+                    color: '#ffffff'
+                  },
+                  grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                  }
+                }
+              }
+            }
+          });
+        },
+        applyTheme() {
+          document.body.className = this.selectedTheme;
+        },
+        startVoiceInput() {
+          if (!('webkitSpeechRecognition' in window)) {
+            this.showMessage('Voice input not supported in your browser', true);
+            return;
+          }
+          const recognition = new webkitSpeechRecognition();
+          recognition.lang = 'en-US';
+          recognition.start();
+          this.showMessage('Listening... Speak now');
+          recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            this.location = transcript;
+            this.searchWeather();
+          };
+          recognition.onerror = (event) => {
+            this.showMessage('Error recognizing speech: ' + event.error, true);
+          };
+        },
+        getLocation() {
+          if (!navigator.geolocation) {
+            this.showMessage('Geolocation is not supported by your browser', true);
+            return;
+          }
+          this.isLoading = true;
+          this.showMessage('Getting your location...');
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const lat = position.coords.latitude;
+              const lon = position.coords.longitude;
+              this.fetchWeather(`${lat},${lon}`);
+              this.showMessage('Location found');
+            },
+            (error) => {
+              this.isLoading = false;
+              this.showMessage('Unable to retrieve your location', true);
+              console.error('Geolocation error:', error);
+            }
+          );
+        },
+        showMessage(message, isError = false) {
+          this.toastMessage = message;
+          this.toastError = isError;
+          this.showToast = true;
+          setTimeout(() => {
+            this.showToast = false;
+          }, 3000);
+        },
+        updateBackgroundEffects(condition) {
+          try {
+            this.clearEffects();
+            if (condition.includes('rain') || condition.includes('drizzle')) {
+              this.createRainEffect();
+              document.body.classList.add('theme-rainy');
+            } else if (condition.includes('snow') || condition.includes('sleet')) {
+              this.createSnowEffect();
+              document.body.classList.add('theme-sunny');
+            } else if (condition.includes('sunny') || condition.includes('clear')) {
+              document.body.classList.add('theme-sunny');
+            } else if (condition.includes('cloud')) {
+              this.createCloudEffect();
+            } else if (condition.includes('fog') || condition.includes('mist')) {
+              this.createFogEffect();
+            }
+          } catch (error) {
+            console.error('Error updating background effects:', error);
+            document.body.className = this.selectedTheme;
+          }
+        },
+        clearEffects() {
+          document.body.classList.remove('theme-sunny', 'theme-rainy');
+          if (this.vantaEffect) {
+            this.vantaEffect.destroy();
+            this.vantaEffect = null;
+          }
+          const weatherBg = document.getElementById('weather-background');
+          weatherBg.innerHTML = '';
+        },
+        createRainEffect() {
+          const container = document.getElementById('weather-background');
+          for (let i = 0; i < 100; i++) {
+            const drop = document.createElement('div');
+            drop.className = 'rain-drop';
+            drop.style.left = `${Math.random() * 100}%`;
+            drop.style.top = `${Math.random() * -20}%`;
+            drop.style.animationDelay = `${Math.random() * 2}s`;
+            drop.style.animationDuration = `${0.5 + Math.random() * 0.5}s`;
+            container.appendChild(drop);
+          }
+        },
+        createSnowEffect() {
+          const container = document.getElementById('weather-background');
+          const snowflakes = ['❄️', '❅', '❆', '✻', '✼'];
+          for (let i = 0; i < 50; i++) {
+            const flake = document.createElement('div');
+            flake.className = 'snowflake';
+            flake.textContent = snowflakes[Math.floor(Math.random() * snowflakes.length)];
+            flake.style.left = `${Math.random() * 100}%`;
+            flake.style.top = `${Math.random() * -20}%`;
+            flake.style.opacity = Math.random();
+            flake.style.fontSize = `${8 + Math.random() * 10}px`;
+            flake.style.animationDuration = `${5 + Math.random() * 10}s`;
+            container.appendChild(flake);
+          }
+        },
+        createCloudEffect() {
+          try {
+            if (typeof VANTA === 'undefined' || typeof VANTA.CLOUDS !== 'function') {
+              console.error('VANTA.CLOUDS is not available');
+              return;
+            }
+            this.vantaEffect = VANTA.CLOUDS({
+              el: "#weather-background",
+              mouseControls: true,
+              touchControls: true,
+              gyroControls: false,
+              minHeight: 200.00,
+              minWidth: 200.00,
+              highlightColor: 0xffffff,
+              midtoneColor: 0xcccccc,
+              lowlightColor: 0x666666,
+              baseColor: 0x333333,
+              blurFactor: 0.6,
+              speed: 1.0,
+              zoom: 1.0
+            });
+          } catch (error) {
+            console.error('Failed to create cloud effect:', error);
+            this.showMessage('Could not create visual effects', true);
+          }
+        },
+        createFogEffect() {
+          try {
+            if (typeof VANTA === 'undefined' || typeof VANTA.FOG !== 'function') {
+              console.error('VANTA.FOG is not available');
+              return;
+            }
+            this.vantaEffect = VANTA.FOG({
+              el: "#weather-background",
+              mouseControls: true,
+              touchControls: true,
+              gyroControls: false,
+              minHeight: 200.00,
+              minWidth: 200.00,
+              highlightColor: 0xffffff,
+              midtoneColor: 0xcccccc,
+              lowlightColor: 0x666666,
+              baseColor: 0x333333,
+              blurFactor: 0.6,
+              speed: 1.0,
+              zoom: 1.0
+            });
+          } catch (error) {
+            console.error('Failed to create fog effect:', error);
+            this.showMessage('Could not create visual effects', true);
+          }
+        },
+        formatDate(dateString) {
+          const date = new Date(dateString);
+          return date.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        },
+        formatHour(timeString) {
+          const time = new Date(timeString);
+          return time.toLocaleTimeString('en-US', { 
+            hour: 'numeric',
+            hour12: true
+          }).replace(' AM', '').replace(' PM', '');
+        },
+        getWeatherIcon(condition) {
+          const text = condition.toLowerCase();
+          if (text.includes('sunny') || text.includes('clear')) {
+            return '☀️';
+          } else if (text.includes('cloud')) {
+            return '☁️';
+          } else if (text.includes('rain')) {
+            return '🌧️';
+          } else if (text.includes('snow')) {
+            return '❄️';
+          } else if (text.includes('thunder') || text.includes('storm')) {
+            return '⛈️';
+          } else if (text.includes('fog') || text.includes('mist')) {
+            return '🌫️';
+          }
+          return '☁️';
+        },
+        toggleMapSelection() {
+          this.mapSelectionMode = !this.mapSelectionMode;
+          if (this.mapSelectionMode) {
+            this.showMessage('Click on the map to select a location');
+          }
+          this.setupMapClickHandler();
+        },
+        zoomIn() {
+          if (this.map) {
+            this.map.zoomIn();
+          }
+        },
+        zoomOut() {
+          if (this.map) {
+            this.map.zoomOut();
+          }
+        },
+        centerOnLocation() {
+          if (this.weatherData && this.map) {
+            const lat = this.weatherData.location.lat;
+            const lon = this.weatherData.location.lon;
+            this.map.setView([lat, lon], 10);
+          }
+        }
+      },
+      mounted() {
+        setTimeout(() => {
+          this.initMap();
+        }, 100);
+        window.addEventListener('resize', this.handleResize);
+      },
+      beforeUnmount() {
+        window.removeEventListener('resize', this.handleResize);
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
