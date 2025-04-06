@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Replace the hardcoded key with an environment variable in production for security.
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyDg6yDJ78UbhbAV8396R2aEno0t6HL08h8";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "Your Gemini API Key";
 
 app.post('/api/ai-suggestions', async (req, res) => {
   const { location, weather, temp } = req.body;
